@@ -2,6 +2,12 @@
 
 FoodFlow is a local food delivery MVP with React, four Node.js services, PostgreSQL, and a local Kafka broker. Users sign up and log in as customers, restaurant operators, or delivery partners. The project remains focused on service boundaries and event-driven architecture; it has no payments.
 
+## GIF demo
+
+Customer ordering, restaurant preparation, and delivery in the running app (sped up).
+
+![FoodFlow demo showing a customer placing an order, restaurant preparation, and delivery](docs/assets/foodflow-demo.gif)
+
 ## Local setup
 
 Requires Node.js 18+, npm, and Docker Compose. From the project root:
