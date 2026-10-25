@@ -4,6 +4,8 @@ FoodFlow is a local food delivery MVP with React, four Node.js services, Postgre
 
 ## GIF demo
 
+For the Kafka architecture, event flow, recovery behavior and code references, see [How FoodFlow uses Kafka](KAFKA_PROJECT_GUIDE.md).
+
 Customer ordering, restaurant preparation, and delivery in the running app (sped up).
 
 ![FoodFlow demo showing a customer placing an order, restaurant preparation, and delivery](docs/assets/foodflow-demo.gif)
