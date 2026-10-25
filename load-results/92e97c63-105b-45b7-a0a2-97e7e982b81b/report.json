@@ -1,0 +1,125 @@
+{
+  "runId": "92e97c63-105b-45b7-a0a2-97e7e982b81b",
+  "requested": 10,
+  "provisionedUsers": 10,
+  "completed": 10,
+  "delivered": 10,
+  "failed": 0,
+  "unaccounted": 0,
+  "concurrency": 5,
+  "seconds": 2.38,
+  "deliveredPerSecond": 4.21,
+  "p50Ms": 1062,
+  "p95Ms": 1428,
+  "p99Ms": 1428,
+  "maxMs": 1428,
+  "workerErrors": [],
+  "scope": "Local seeded accounts and signed fixture tokens; real order, restaurant and delivery APIs plus Kafka; simulated restaurant and delivery actors. Not a signup/login load test or proof of physical receipt.",
+  "endpoints": {
+    "GET 3001 /health": {
+      "count": 1,
+      "failures": 0,
+      "p50Ms": 131,
+      "p95Ms": 131,
+      "p99Ms": 131,
+      "maxMs": 131
+    },
+    "GET 3002 /health": {
+      "count": 1,
+      "failures": 0,
+      "p50Ms": 40,
+      "p95Ms": 40,
+      "p99Ms": 40,
+      "maxMs": 40
+    },
+    "GET 3003 /health": {
+      "count": 1,
+      "failures": 0,
+      "p50Ms": 41,
+      "p95Ms": 41,
+      "p99Ms": 41,
+      "maxMs": 41
+    },
+    "GET 3004 /health": {
+      "count": 1,
+      "failures": 0,
+      "p50Ms": 41,
+      "p95Ms": 41,
+      "p99Ms": 41,
+      "maxMs": 41
+    },
+    "POST 3004 /api/auth/login": {
+      "count": 2,
+      "failures": 0,
+      "p50Ms": 734,
+      "p95Ms": 772,
+      "p99Ms": 772,
+      "maxMs": 772
+    },
+    "POST 3001 /api/orders": {
+      "count": 10,
+      "failures": 0,
+      "p50Ms": 66,
+      "p95Ms": 158,
+      "p99Ms": 158,
+      "maxMs": 158
+    },
+    "POST 3002 /api/restaurant/orders/:id/accept": {
+      "count": 10,
+      "failures": 0,
+      "p50Ms": 68,
+      "p95Ms": 163,
+      "p99Ms": 163,
+      "maxMs": 163
+    },
+    "POST 3002 /api/restaurant/orders/:id/preparing": {
+      "count": 10,
+      "failures": 0,
+      "p50Ms": 69,
+      "p95Ms": 175,
+      "p99Ms": 175,
+      "maxMs": 175
+    },
+    "POST 3002 /api/restaurant/orders/:id/ready": {
+      "count": 10,
+      "failures": 0,
+      "p50Ms": 66,
+      "p95Ms": 89,
+      "p99Ms": 89,
+      "maxMs": 89
+    },
+    "POST 3003 /api/deliveries/:id/accept": {
+      "count": 10,
+      "failures": 0,
+      "p50Ms": 13,
+      "p95Ms": 71,
+      "p99Ms": 71,
+      "maxMs": 71
+    },
+    "POST 3003 /api/deliveries/:id/picked-up": {
+      "count": 10,
+      "failures": 0,
+      "p50Ms": 81,
+      "p95Ms": 159,
+      "p99Ms": 159,
+      "maxMs": 159
+    },
+    "POST 3003 /api/deliveries/:id/delivered": {
+      "count": 10,
+      "failures": 0,
+      "p50Ms": 75,
+      "p95Ms": 87,
+      "p99Ms": 87,
+      "maxMs": 87
+    },
+    "GET 3001 /api/orders/:id": {
+      "count": 10,
+      "failures": 0,
+      "p50Ms": 17,
+      "p95Ms": 23,
+      "p99Ms": 23,
+      "maxMs": 23
+    }
+  },
+  "failures": []
+}

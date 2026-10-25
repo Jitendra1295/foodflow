@@ -1,0 +1,29 @@
+{
+  "name": "foodflow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A small food delivery MVP for learning distributed systems",
+  "scripts": {
+    "demo:record": "node scripts/record-demo.js",
+    "seed:admin": "node services/auth-service/scripts/seed-admin.js",
+    "test:load": "node scripts/load-orders.js",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:order": "npm --prefix services/order-service run dev",
+    "dev:restaurant": "npm --prefix services/restaurant-service run dev",
+    "dev:delivery": "npm --prefix services/delivery-service run dev",
+    "dev:auth": "npm --prefix services/auth-service run dev",
+    "seed:demo": "npm --prefix services/auth-service run seed:demo",
+    "test": "npm --prefix services/order-service test && npm --prefix services/restaurant-service test && npm --prefix services/auth-service test && npm --prefix services/delivery-service test",
+    "test:integration": "npm --prefix services/order-service run test:integration && npm --prefix services/auth-service run test:integration && npm --prefix services/delivery-service run test:integration",
+    "migrate": "npm --prefix services/order-service run migrate",
+    "reconcile": "npm --prefix services/delivery-service run reconcile",
+    "kafka:check": "node scripts/check-kafka.js",
+    "kafka:publisher": "node services/order-service/scripts/publish-outbox.js",
+    "kafka:consumer": "node services/delivery-service/scripts/consume-order-events.js",
+    "start:frontend": "npm --prefix frontend run dev -- --host 0.0.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "kafkajs": "^2.2.4"
+  }
+}
