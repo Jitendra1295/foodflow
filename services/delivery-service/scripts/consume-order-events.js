@@ -1,6 +1,6 @@
 const { Kafka, logLevel } = require('kafkajs');
 const db = require('../src/db');
-const { brokers, clientId } = require('../../shared/kafkaConfig');
+const { brokers, clientId, sasl } = require('../../shared/kafkaConfig');
 const { processBatch, topic } = require('../src/orderReadyConsumer');
 const { bootstrapLatest } = require('../src/kafkaBootstrap');
 
@@ -9,7 +9,7 @@ const start = process.env.KAFKA_CONSUMER_START || 'latest';
 if (!['latest', 'earliest'].includes(start)) throw new Error('KAFKA_CONSUMER_START must be latest or earliest.');
 
 const kafka = new Kafka({
-  clientId: `${clientId}-delivery-consumer`, brokers,
+  clientId: `${clientId}-delivery-consumer`, brokers, sasl,
   connectionTimeout: 3000, requestTimeout: 5000,
   retry: { retries: 5, initialRetryTime: 500, maxRetryTime: 5000 },
   logLevel: logLevel.ERROR

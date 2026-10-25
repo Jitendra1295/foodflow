@@ -30,11 +30,15 @@ Copy-Item frontend/.env.example frontend/.env
 
 Set `POSTGRES_PASSWORD` in the root `.env` and use it in every backend `DATABASE_URL`. Set the same random `JWT_SECRET` (at least 32 bytes) and `JWT_ISSUER` in all four backend files; set the same separate `INTERNAL_API_TOKEN` in them. Never put either secret in the frontend environment. Set `DEMO_PASSWORD` only in the Auth Service `.env` if you want seeded accounts. The examples are local development templates, not production secrets. If host port 5432 is busy, set `POSTGRES_HOST_PORT=5433` and change the port in all backend database URLs.
 
-Set `KAFKA_BROKERS=localhost:9092` and `KAFKA_CLIENT_ID=foodflow` in the root `.env` for the Windows-hosted Kafka processes. Run `npm install` in the project root for KafkaJS and dotenv, then `npm run kafka:check` to verify the existing `order-events` topic. The Delivery Service consumer defaults to group `foodflow-delivery-service-v1` and saves a new group's starting offset at the topic's current end before processing; this position survives a crash before its first event commit. Set `KAFKA_CONSUMER_GROUP_ID` and `KAFKA_CONSUMER_START=earliest` only when deliberately replaying with an isolated group.
+Set `KAFKA_BROKERS=127.0.0.1:9092`, `KAFKA_CLIENT_ID=foodflow`, `KAFKA_USERNAME=foodflow`, and a random `KAFKA_PASSWORD` in the root `.env`. Generate a password with `[guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')`; copy it into the ignored `.env` only. Passwords must contain at least 32 letters, numbers, underscores or hyphens. Run `npm install` in the root for KafkaJS and dotenv. The local broker requires SASL/PLAIN authentication and binds only to loopback. Use `127.0.0.1` in backend database URLs as PostgreSQL also binds to loopback.
+
+The Delivery Service consumer defaults to group `foodflow-delivery-service-v1`. A PostgreSQL advisory lock serializes initialization before saving a new group's current end position. Existing committed positions are preserved; the lock requires database access. Set `KAFKA_CONSUMER_GROUP_ID` and `KAFKA_CONSUMER_START=earliest` only when deliberately replaying with an isolated group. `KAFKA_BOOTSTRAP_DATABASE_URL` optionally provides a separate database connection for initialization; all instances must share that database for the lock to coordinate them.
 
 ```powershell
 docker compose --env-file .env -f infrastructure/docker-compose.yml up -d
 npm run migrate
+npm run kafka:ensure
+npm run kafka:check
 ```
 
 Migrations in `infrastructure/migrations/` are versioned, recorded in `public.schema_migrations`, and safe to rerun. The initialization SQL seeds restaurant and menu data only when PostgreSQL first starts. Keep the Docker volume; migration `002_auth.sql` preserves existing orders and demo identities.
@@ -78,6 +82,8 @@ An order request contains `restaurantId` and `items: [{ menuItemId, quantity }]`
 To try the workflow, log in as a customer and place an order; log out and log in as the restaurant operator to accept, prepare, and mark it ready; then log in as the delivery partner to claim, pick up, and deliver it. Log back in as the customer to see the delivered state. The pages refresh order and delivery lists every five seconds.
 
 ## Verification
+
+Run `npm run test:security` with the APIs and Kafka available, while the normal Kafka workers are paused. It checks authentication, poisoned messages, outbox provenance, duplicate handling and initialization locking using temporary fixtures. See [KAFKA_HARDENING_REPORT.md](KAFKA_HARDENING_REPORT.md) for remediation and recovery details.
 
 ### Record a video walkthrough
 

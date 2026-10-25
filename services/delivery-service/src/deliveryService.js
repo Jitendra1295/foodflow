@@ -229,4 +229,8 @@ async function reconcile() {
   return reconcilePending();
 }
 
-module.exports = { listAvailable, listMyDeliveries, changeStatus, reportIssue, reconcile, reconcilePending, insertAvailableDelivery, getOrderForEvent };
+function getReadyEvent(orderId, eventId) {
+  return requestOrderService(`/internal/orders/${encodeURIComponent(orderId)}/ready-events/${encodeURIComponent(eventId)}`);
+}
+
+module.exports = { listAvailable, listMyDeliveries, changeStatus, reportIssue, reconcile, reconcilePending, insertAvailableDelivery, getOrderForEvent, getReadyEvent };

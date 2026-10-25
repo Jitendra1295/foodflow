@@ -1,10 +1,12 @@
 const db = require('./db');
 const deliveryService = require('./deliveryService');
+const { isDeepStrictEqual } = require('node:util');
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const topic = 'order-events';
 
 function parseEvent(message) {
+  if ((message.value?.length || 0) > 16384) return { kind: 'quarantine', reason: 'EVENT_TOO_LARGE', raw: message.value.toString('utf8', 0, 16384) };
   const raw = message.value?.toString('utf8') || '';
   let event;
   try { event = JSON.parse(raw); }
@@ -14,11 +16,11 @@ function parseEvent(message) {
   }
   if (event.eventType !== 'ORDER_READY') return { kind: 'ignored', eventType: event.eventType };
   if (event.eventVersion !== 1) return { kind: 'quarantine', reason: 'UNSUPPORTED_VERSION', raw, eventId: event.eventId };
-  if (!uuidPattern.test(event.eventId || '') || event.source !== 'order-service' ||
-      typeof event.occurredAt !== 'string' || Number.isNaN(Date.parse(event.occurredAt)) ||
+  if (typeof event.eventId !== 'string' || !uuidPattern.test(event.eventId) || event.source !== 'order-service' ||
+      typeof event.occurredAt !== 'string' || event.occurredAt.length > 40 || Number.isNaN(Date.parse(event.occurredAt)) ||
       !event.data || typeof event.data !== 'object' || Array.isArray(event.data) ||
-      !uuidPattern.test(event.data.orderId || '') ||
-      typeof event.data.restaurantId !== 'string' || !event.data.restaurantId.trim() ||
+      typeof event.data.orderId !== 'string' || !uuidPattern.test(event.data.orderId) ||
+      typeof event.data.restaurantId !== 'string' || !event.data.restaurantId.trim() || event.data.restaurantId.length > 200 || event.data.restaurantId.includes('\u0000') ||
       event.data.status !== 'ready_for_pickup' ||
       message.key?.toString('utf8') !== event.data.orderId) {
     return { kind: 'quarantine', reason: 'INVALID_ORDER_READY', raw, eventId: event.eventId };
@@ -27,27 +29,38 @@ function parseEvent(message) {
 }
 
 async function quarantine(database, record, reason, raw, details = null, eventId = null) {
+  // PostgreSQL TEXT cannot store NUL. Preserve it as a visible escape instead.
+  const text = (value, limit) => String(value).replace(/\u0000/g, '\\u0000').slice(0, limit);
   await database.query(
     `INSERT INTO delivery_data.kafka_quarantine
        (topic, partition, kafka_offset, event_id, reason, raw_value, details)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (topic, partition, kafka_offset) DO NOTHING`,
     [record.topic, record.partition, record.offset,
-      uuidPattern.test(eventId || '') ? eventId : null, reason, raw.slice(0, 16384), details?.slice(0, 500) || null]
+      typeof eventId === 'string' && uuidPattern.test(eventId) ? eventId : null, reason, text(raw, 16384), details ? text(details, 500) : null]
   );
   return { state: 'quarantined', reason };
 }
 
 async function processRecord(record, { database = db, getOrder = deliveryService.getOrderForEvent,
+  getReadyEvent = deliveryService.getReadyEvent,
   insertDelivery = deliveryService.insertAvailableDelivery } = {}) {
   const parsed = parseEvent(record.message);
-  const raw = record.message.value?.toString('utf8') || '';
+  const raw = record.message.value?.toString('utf8', 0, 16384) || '';
   if (parsed.kind === 'ignored') return { state: 'ignored', eventType: parsed.eventType };
   if (parsed.kind === 'quarantine') {
     return quarantine(database, record, parsed.reason, raw, null, parsed.eventId);
   }
 
   const { event } = parsed;
+  // A source string is not authentication: require the exact committed outbox payload.
+  let authoritative;
+  try { authoritative = await getReadyEvent(event.data.orderId, event.eventId); }
+  catch (error) {
+    if (error.statusCode === 404) return quarantine(database, record, 'UNVERIFIED_EVENT', raw, 'No matching Order Service outbox event.', event.eventId);
+    throw error;
+  }
+  if (!isDeepStrictEqual(authoritative, event)) return quarantine(database, record, 'EVENT_PAYLOAD_MISMATCH', raw, 'Payload differs from the committed outbox event.', event.eventId);
   let order;
   try {
     order = await getOrder(event.data.orderId);
@@ -75,7 +88,10 @@ async function processRecord(record, { database = db, getOrder = deliveryService
     );
     if (!inserted.rowCount) {
       const prior = await client.query('SELECT order_id FROM delivery_data.processed_events WHERE event_id = $1', [event.eventId]);
-      if (prior.rows[0]?.order_id !== event.data.orderId) throw new Error(`Event ID ${event.eventId} was reused for another order.`);
+      if (prior.rows[0]?.order_id !== event.data.orderId) {
+        await client.query('ROLLBACK');
+        return await quarantine(client, record, 'EVENT_ID_CONFLICT', raw, 'Event ID already belongs to another order.', event.eventId);
+      }
       await client.query('COMMIT');
       return { state: 'duplicate', eventId: event.eventId };
     }
@@ -84,7 +100,7 @@ async function processRecord(record, { database = db, getOrder = deliveryService
       const existing = await client.query('SELECT id FROM delivery_data.deliveries WHERE order_id = $1', [order.id]);
       if (!existing.rowCount) {
         await client.query('ROLLBACK');
-        return quarantine(database, record, 'MISSING_DELIVERY_FOR_ADVANCED_ORDER', raw,
+        return await quarantine(client, record, 'MISSING_DELIVERY_FOR_ADVANCED_ORDER', raw,
           `Order Service status is ${order.status}, but no delivery exists.`, event.eventId);
       }
     } else {

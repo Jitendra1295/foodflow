@@ -25,6 +25,9 @@ test('validates ORDER_READY and classifies other types and poison records', () =
   assert.equal(parseEvent(message({ ...event, eventVersion: 2 })).reason, 'UNSUPPORTED_VERSION');
   assert.equal(parseEvent(message({ ...event, eventId: 'bad' })).reason, 'INVALID_ORDER_READY');
   assert.equal(parseEvent({ ...message(event), key: Buffer.from(randomUUID()) }).reason, 'INVALID_ORDER_READY');
+  assert.equal(parseEvent(message({ ...event, eventId: [event.eventId] })).reason, 'INVALID_ORDER_READY');
+  assert.equal(parseEvent(message({ ...event, data: {...event.data, restaurantId:'bad\u0000value'} })).reason, 'INVALID_ORDER_READY');
+  assert.equal(parseEvent({value:Buffer.alloc(16385)}).reason, 'EVENT_TOO_LARGE');
 });
 
 test('commits next offset only after processing succeeds and ownership remains valid', async () => {
@@ -59,8 +62,9 @@ test('anchors only an uncommitted new group at the current end', async () => {
     fetchTopicOffsets: async () => [{ partition: 0, high: '42' }],
     setOffsets: async ({ partitions }) => { offset = partitions[0].offset; changes++; }
   };
-  assert.equal(await bootstrapLatest(admin, 'isolated-group', 'order-events'), true);
+  const options = { withLock: async (_group, _topic, work) => work() };
+  assert.equal(await bootstrapLatest(admin, 'isolated-group', 'order-events', options), true);
   assert.equal(offset, '42');
-  assert.equal(await bootstrapLatest(admin, 'isolated-group', 'order-events'), false);
+  assert.equal(await bootstrapLatest(admin, 'isolated-group', 'order-events', options), false);
   assert.equal(changes, 1);
 });

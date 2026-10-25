@@ -1,0 +1,29 @@
+{
+  "topic": [
+    {
+      "partition": 0,
+      "offset": "1049",
+      "high": "1049",
+      "low": "0"
+    }
+  ],
+  "group": [
+    {
+      "topic": "order-events",
+      "partitions": [
+        {
+          "partition": 0,
+          "offset": "1049",
+          "metadata": null
+        }
+      ]
+    }
+  ],
+  "database": {
+    "orders": 1080,
+    "deliveries": 1056,
+    "outbox": 1040,
+    "duplicate_deliveries": 0,
+    "original_load_delivered": 1000
+  }
+}

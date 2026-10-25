@@ -36,6 +36,7 @@ app.use('/internal', (req, res, next) => {
 app.get('/internal/orders/ready', controllers.ready);
 app.get('/internal/orders', controllers.listInternal);
 app.get('/internal/orders/:id', controllers.getInternal);
+app.get('/internal/orders/:id/ready-events/:eventId', controllers.readyEvent);
 app.get('/internal/orders/:id/operations/:operationId', controllers.getOperation);
 app.patch('/internal/orders/:id/status', controllers.updateStatus);
 app.use(errorHandler);

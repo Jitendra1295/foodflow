@@ -1,6 +1,6 @@
 const { Kafka, logLevel } = require('kafkajs');
 const db = require('../src/db');
-const { brokers, clientId } = require('../../shared/kafkaConfig');
+const { brokers, clientId, sasl } = require('../../shared/kafkaConfig');
 const { createPublisher } = require('../src/outboxPublisher');
 
 const orderIdIndex = process.argv.indexOf('--order-id');
@@ -12,6 +12,7 @@ if (orderIdIndex >= 0 && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
 const kafka = new Kafka({
   clientId: `${clientId}-order-publisher`,
   brokers,
+  sasl,
   connectionTimeout: 3000,
   requestTimeout: 5000,
   retry: { retries: 0 },

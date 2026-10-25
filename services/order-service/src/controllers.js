@@ -1,5 +1,6 @@
 const { AppError, asyncHandler } = require('./errors');
 const orderService = require('./orderService');
+const db = require('./db');
 const { uuid, operationId } = require('./validation');
 
 const create = asyncHandler(async (req, res) => {
@@ -54,4 +55,9 @@ const updateStatus = asyncHandler(async (req, res) => {
   res.json(await orderService.updateStatus(uuid(req.params.id), status, rejectionReason, operationId(req.get('X-Operation-Id'))));
 });
 
-module.exports = { create, list, get, listInternal, getInternal, ready, getOperation, updateStatus };
+const readyEvent = asyncHandler(async (req, res) => {
+  const result = await db.query(`SELECT payload FROM order_data.outbox_events WHERE aggregate_id=$1 AND id=$2 AND event_type='ORDER_READY'`, [uuid(req.params.id), uuid(req.params.eventId)]);
+  if (!result.rowCount) throw new AppError(404, 'Ready event not found.');
+  res.json(result.rows[0].payload);
+});
+module.exports = { create, list, get, listInternal, getInternal, ready, getOperation, updateStatus, readyEvent };

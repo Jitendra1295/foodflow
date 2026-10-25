@@ -1,10 +1,11 @@
 const { Kafka, logLevel } = require('kafkajs');
-const { brokers, clientId } = require('../services/shared/kafkaConfig');
+const { brokers, clientId, sasl } = require('../services/shared/kafkaConfig');
 
 const topic = 'order-events';
 const kafka = new Kafka({
   clientId,
   brokers,
+  sasl,
   connectionTimeout: 3000,
   requestTimeout: 5000,
   retry: { retries: 0 },

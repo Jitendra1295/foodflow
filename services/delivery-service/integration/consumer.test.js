@@ -10,7 +10,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 require('dotenv').config({ path: path.resolve(__dirname, '../../auth-service/.env') });
 const { processRecord, processBatch } = require('../src/orderReadyConsumer');
 const deliveryService = require('../src/deliveryService');
-const { brokers, clientId } = require('../../shared/kafkaConfig');
+const { brokers, clientId, sasl } = require('../../shared/kafkaConfig');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const run = promisify(execFile);
@@ -88,7 +88,7 @@ test.after(async () => {
   } finally { await pool.end(); }
 });
 
-test('valid and duplicate events create one delivery and record each distinct event ID', async () => {
+test('authentic duplicate creates one delivery; invented event ID is quarantined', async () => {
   const id = await createReadyOrder();
   const first = await recordFor(id);
   assert.equal((await processRecord(first)).state, 'processed');
@@ -97,9 +97,9 @@ test('valid and duplicate events create one delivery and record each distinct ev
   const changed = JSON.parse(second.message.value.toString());
   changed.eventId = randomUUID();
   second.message.value = Buffer.from(JSON.stringify(changed));
-  assert.equal((await processRecord(second)).state, 'processed');
+  assert.equal((await processRecord(second)).reason, 'UNVERIFIED_EVENT');
   assert.equal(await count('deliveries', id), 1);
-  assert.equal(await count('processed_events', id), 2);
+  assert.equal(await count('processed_events', id), 1);
 });
 
 test('poison, unsupported, unrelated, and missing historical events follow explicit policy', async () => {
@@ -121,9 +121,9 @@ test('poison, unsupported, unrelated, and missing historical events follow expli
   missingEvent.data.orderId = randomUUID();
   missing.message.key = Buffer.from(missingEvent.data.orderId);
   missing.message.value = Buffer.from(JSON.stringify(missingEvent));
-  assert.equal((await processRecord(missing)).reason, 'MISSING_ORDER');
-  const rows = await pool.query('SELECT reason FROM delivery_data.kafka_quarantine WHERE topic = $1 ORDER BY kafka_offset', [testTopic]);
-  assert.deepEqual(rows.rows.map((row) => row.reason), ['INVALID_JSON', 'UNSUPPORTED_VERSION', 'MISSING_ORDER']);
+  assert.equal((await processRecord(missing)).reason, 'UNVERIFIED_EVENT');
+  const rows = await pool.query('SELECT reason FROM delivery_data.kafka_quarantine WHERE topic = $1 AND kafka_offset BETWEEN 10 AND 13 ORDER BY kafka_offset', [testTopic]);
+  assert.deepEqual(rows.rows.map((row) => row.reason), ['INVALID_JSON', 'UNSUPPORTED_VERSION', 'UNVERIFIED_EVENT']);
   assert.equal(await count('deliveries', id), 0);
 });
 
@@ -205,7 +205,7 @@ test('separate Kafka process starts at latest, commits after delivery, and resta
   const groupId = `foodflow-delivery-test-${randomUUID()}`;
   const script = path.resolve(__dirname, '../scripts/consume-order-events.js');
   const publisher = path.resolve(__dirname, '../../order-service/scripts/publish-outbox.js');
-  const kafka = new Kafka({ clientId: `${clientId}-consumer-test`, brokers, logLevel: logLevel.ERROR });
+  const kafka = new Kafka({ clientId: `${clientId}-consumer-test`, brokers, sasl, logLevel: logLevel.ERROR });
   const admin = kafka.admin();
   const children = [];
   const stopChild = async (child) => {
@@ -290,7 +290,7 @@ test('a new latest group replays its first event after a pre-commit database fai
   const groupId = `foodflow-first-event-test-${randomUUID()}`;
   const consumerScript = path.resolve(__dirname, '../scripts/consume-order-events.js');
   const publisherScript = path.resolve(__dirname, '../../order-service/scripts/publish-outbox.js');
-  const kafka = new Kafka({ clientId: `${clientId}-first-event-test`, brokers, logLevel: logLevel.ERROR });
+  const kafka = new Kafka({ clientId: `${clientId}-first-event-test`, brokers, sasl, logLevel: logLevel.ERROR });
   const admin = kafka.admin();
   const children = [];
   const stopChild = async (child) => {
@@ -301,7 +301,7 @@ test('a new latest group replays its first event after a pre-commit database fai
   };
   const startConsumer = async (databaseUrl) => {
     const child = spawn(process.execPath, [consumerScript], {
-      env: { ...process.env, DATABASE_URL: databaseUrl, KAFKA_CONSUMER_GROUP_ID: groupId, KAFKA_CONSUMER_START: 'latest' },
+      env: { ...process.env, DATABASE_URL: databaseUrl, KAFKA_BOOTSTRAP_DATABASE_URL: process.env.DATABASE_URL, KAFKA_CONSUMER_GROUP_ID: groupId, KAFKA_CONSUMER_START: 'latest' },
       stdio: ['ignore', 'pipe', 'pipe']
     });
     children.push(child);

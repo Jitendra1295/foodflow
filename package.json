@@ -4,6 +4,8 @@
   "private": true,
   "description": "A small food delivery MVP for learning distributed systems",
   "scripts": {
+    "test:security": "node scripts/kafka-security-review.js",
+    "kafka:ensure": "node scripts/kafka-admin.js --ensure-topic",
     "demo:record": "node scripts/record-demo.js",
     "seed:admin": "node services/auth-service/scripts/seed-admin.js",
     "test:load": "node scripts/load-orders.js",

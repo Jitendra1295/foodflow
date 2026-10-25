@@ -8,7 +8,7 @@ const { Kafka, logLevel } = require('kafkajs');
 const path = require('node:path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 require('dotenv').config({ path: path.resolve(__dirname, '../../auth-service/.env') });
-const { brokers, clientId } = require('../../shared/kafkaConfig');
+const { brokers, clientId, sasl } = require('../../shared/kafkaConfig');
 const { createPublisher } = require('../src/outboxPublisher');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -240,7 +240,7 @@ test('publisher database outage leaves the event pending until PostgreSQL is rea
 
 test('Kafka acknowledgement advances the topic and marks the event published', async () => {
   const id = await readyOrder();
-  const kafka = new Kafka({ clientId: `${clientId}-outbox-test`, brokers, connectionTimeout: 3000, requestTimeout: 5000, retry: { retries: 0 }, logLevel: logLevel.ERROR });
+  const kafka = new Kafka({ clientId: `${clientId}-outbox-test`, brokers, sasl, connectionTimeout: 3000, requestTimeout: 5000, retry: { retries: 0 }, logLevel: logLevel.ERROR });
   const admin = kafka.admin();
   await admin.connect();
   try {
